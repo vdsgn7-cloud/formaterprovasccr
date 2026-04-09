@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProvaFormat — Colégio Cristo Rei</title>
+  <meta name="description" content="Sistema de formatação automática de provas escolares com IA para o Colégio Cristo Rei." />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- KaTeX (fórmulas matemáticas) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+  <!-- PDF.js -->
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+
+  <!-- Mammoth (DOCX) -->
+  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+
+  <!-- docx.js (exportar DOCX) -->
+  <script src="https://cdn.jsdelivr.net/npm/docx@8.2.3/build/index.umd.js"></script>
+
+  <!-- Estilos -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- Decorative glows -->
+<div class="bg-glow bg-glow-1"></div>
+<div class="bg-glow bg-glow-2"></div>
+
+<!-- Toast container -->
+<div id="toast-container" class="toast-container"></div>
+
+<!-- ===== MODAL CONFIRMAÇÃO ===== -->
+<div id="modal-confirm" class="modal-overlay">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <span class="modal-title">⚠️ Confirmar ação</span>
+      <button class="modal-close" onclick="fecharModal('modal-confirm')">✕</button>
+    </div>
+    <p id="confirm-message" style="color:var(--text-muted);font-size:14px;line-height:1.6"></p>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modal-confirm')">Cancelar</button>
+      <button id="confirm-action" class="btn btn-danger">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== WRAPPER ===== -->
+<div class="app-wrapper">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🎓</div>
+      <div class="logo-text">
+        ProvaFormat
+        <span>Colégio Cristo Rei</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Geral</div>
+        <a class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')">
+          <span class="nav-icon">🏠</span> Dashboard
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Gerenciamento</div>
+        <a class="nav-item" data-page="turmas" onclick="navigateTo('turmas')">
+          <span class="nav-icon">🎓</span> Turmas
+        </a>
+        <a class="nav-item" data-page="provas" onclick="navigateTo('provas')">
+          <span class="nav-icon">📝</span> Provas
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Ações</div>
+        <a class="nav-item" onclick="navigateTo('nova-prova')">
+          <span class="nav-icon">➕</span> Nova Prova
+        </a>
+        <a class="nav-item" onclick="navigateTo('nova-turma')">
+          <span class="nav-icon">🏫</span> Nova Turma
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <a class="nav-item" data-page="configuracoes" onclick="navigateTo('configuracoes')">
+        <span class="nav-icon">⚙️</span> Configurações
+      </a>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main class="main-content">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <span id="topbar-title" class="topbar-title">Dashboard</span>
+      <div class="topbar-actions">
+        <button class="btn btn-accent" onclick="navigateTo('nova-prova')">
+          ➕ Nova Prova
+        </button>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <div class="page-content">
+
+      <!-- ========================================
+           PÁGINA: DASHBOARD
+           ======================================== -->
+      <div id="page-dashboard" class="page active">
+        <!-- Stats -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon">🎓</div>
+            <div class="stat-value" id="stat-turmas">0</div>
+            <div class="stat-label">Turmas Cadastradas</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📝</div>
+            <div class="stat-value" id="stat-provas">0</div>
+            <div class="stat-label">Provas Criadas</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">✅</div>
+            <div class="stat-value" id="stat-formatadas">0</div>
+            <div class="stat-label">Formatadas com IA</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🤖</div>
+            <div class="stat-value" style="font-size:18px;color:var(--primary-light)">Claude AI</div>
+            <div class="stat-label">Motor de Formatação</div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="section-header" style="margin-bottom:16px">
+          <div>
+            <div class="section-title">Ações Rápidas</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:32px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-lg" onclick="navigateTo('nova-prova')">
+            ➕ Formatar Nova Prova
+          </button>
+          <button class="btn btn-ghost btn-lg" onclick="navigateTo('nova-turma')">
+            🏫 Cadastrar Turma
+          </button>
+          <button class="btn btn-ghost btn-lg" onclick="navigateTo('turmas')">
+            🎓 Ver Turmas
+          </button>
+        </div>
+
+        <!-- Turmas Recentes -->
+        <div class="section-header">
+          <div>
+            <div class="section-title">Turmas</div>
+            <div class="section-subtitle">Turmas cadastradas no sistema</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="navigateTo('turmas')">Ver todas →</button>
+        </div>
+        <div class="cards-grid" id="turmas-recentes-lista" style="margin-bottom:32px">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+
+        <!-- Provas Recentes -->
+        <div class="section-header">
+          <div>
+            <div class="section-title">Provas Recentes</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="navigateTo('provas')">Ver todas →</button>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Título</th>
+                <th>Disciplina</th>
+                <th>Data</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="provas-recentes-lista">
+              <tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:32px">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========================================
+           PÁGINA: TURMAS
+           ======================================== -->
+      <div id="page-turmas" class="page">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Turmas</div>
+            <div class="section-subtitle">Gerencie todas as turmas do colégio</div>
+          </div>
+          <button class="btn btn-primary" onclick="navigateTo('nova-turma')">➕ Nova Turma</button>
+        </div>
+        <div class="cards-grid" id="turmas-grid">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- ========================================
+           PÁGINA: NOVA / EDITAR TURMA
+           ======================================== -->
+      <div id="page-nova-turma" class="page">
+        <div class="breadcrumb">
+          <a onclick="navigateTo('turmas')">Turmas</a>
+          <span>›</span>
+          <span id="form-turma-title">Nova Turma</span>
+        </div>
+
+        <div class="section-header">
+          <div>
+            <div class="section-title" id="form-turma-title">Nova Turma</div>
+          </div>
+        </div>
+
+        <form id="form-turma" onsubmit="salvarTurma(event)"
+              style="max-width:640px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:32px">
+          <input type="hidden" id="turma-id-hidden" />
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="turma-nome">Nome da Turma *</label>
+              <input id="turma-nome" class="form-input" type="text"
+                     placeholder="Ex: 9º Ano A" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="turma-serie">Série *</label>
+              <input id="turma-serie" class="form-input" type="text"
+                     placeholder="Ex: 9º Ano" required />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="turma-turno">Turno *</label>
+              <select id="turma-turno" class="form-select" required>
+                <option value="">Selecione...</option>
+                <option value="Matutino">Matutino</option>
+                <option value="Vespertino">Vespertino</option>
+                <option value="Noturno">Noturno</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="turma-ano">Ano Letivo *</label>
+              <input id="turma-ano" class="form-input" type="number"
+                     value="2025" min="2020" max="2030" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="turma-professor">Professor(a) Responsável</label>
+            <input id="turma-professor" class="form-input" type="text"
+                   placeholder="Nome completo do professor" />
+          </div>
+
+          <div style="display:flex;gap:12px;margin-top:8px">
+            <button type="submit" id="btn-salvar-turma" class="btn btn-primary">
+              💾 Salvar Turma
+            </button>
+            <button type="button" class="btn btn-ghost" onclick="navigateTo('turmas')">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- ========================================
+           PÁGINA: DETALHE DA TURMA
+           ======================================== -->
+      <div id="page-turma-detalhe" class="page">
+        <div class="breadcrumb">
+          <a onclick="navigateTo('turmas')">Turmas</a>
+          <span>›</span>
+          <span id="breadcrumb-turma">Turma</span>
+        </div>
+
+        <div class="section-header">
+          <div>
+            <div class="section-title" id="detalhe-turma-nome">Turma</div>
+            <div class="section-subtitle" id="detalhe-turma-info"></div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-ghost btn-sm" onclick="editarTurma(App.selectedTurma?.id)">✏️ Editar Turma</button>
+            <button class="btn btn-primary" onclick="navigateTo('nova-prova', {turmaId: App.selectedTurma?.id})">
+              ➕ Nova Prova
+            </button>
+          </div>
+        </div>
+
+        <div class="cards-grid" id="provas-turma-lista"></div>
+      </div>
+
+      <!-- ========================================
+           PÁGINA: PROVAS (LISTA GERAL)
+           ======================================== -->
+      <div id="page-provas" class="page">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Todas as Provas</div>
+            <div class="section-subtitle">Biblioteca completa de provas formatadas</div>
+          </div>
+          <button class="btn btn-primary" onclick="navigateTo('nova-prova')">➕ Nova Prova</button>
+        </div>
+        <div class="cards-grid" id="provas-lista-grid"></div>
+      </div>
+
+      <!-- ========================================
+           PÁGINA: NOVA PROVA (UPLOAD + FORMATAÇÃO)
+           ======================================== -->
+      <div id="page-nova-prova" class="page">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Nova Prova</div>
+            <div class="section-subtitle">Faça upload, configure e formate com IA</div>
+          </div>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="steps" style="margin-bottom:32px">
+          <div class="step active" data-step="1">
+            <div class="step-num">1</div>
+            <div class="step-label">Upload & Configuração</div>
+          </div>
+          <div class="step" data-step="2">
+            <div class="step-num">2</div>
+            <div class="step-label">Formatação com IA</div>
+          </div>
+          <div class="step" data-step="3">
+            <div class="step-num">3</div>
+            <div class="step-label">Revisão & Salvar</div>
+          </div>
+        </div>
+
+        <form id="form-nova-prova">
+          <!-- STEP 1: Upload & Metadados -->
+          <div id="step-upload">
+            <!-- Configuração da prova -->
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:24px">
+              <div class="section-title" style="font-size:16px;margin-bottom:20px">📋 Informações da Prova</div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="prova-turma-select">Turma *</label>
+                  <select id="prova-turma-select" class="form-select" required>
+                    <option value="">Selecione uma turma...</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="prova-disciplina">Disciplina *</label>
+                  <input id="prova-disciplina" class="form-input" type="text"
+                         placeholder="Ex: Matemática, Português..." required />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="prova-bimestre">Bimestre</label>
+                  <select id="prova-bimestre" class="form-select">
+                    <option value="">Selecione...</option>
+                    <option value="1">1º Bimestre</option>
+                    <option value="2">2º Bimestre</option>
+                    <option value="3">3º Bimestre</option>
+                    <option value="4">4º Bimestre</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="prova-data">Data de Aplicação</label>
+                  <input id="prova-data" class="form-input" type="date" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="prova-valor">Valor (pontos)</label>
+                  <input id="prova-valor" class="form-input" type="number" min="0" step="0.5" placeholder="Ex: 10" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="prova-tempo">Duração (min)</label>
+                  <input id="prova-tempo" class="form-input" type="number" min="0" placeholder="Ex: 50" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Upload Zone -->
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:24px">
+              <div class="section-title" style="font-size:16px;margin-bottom:20px">📁 Upload do Arquivo</div>
+
+              <div class="upload-zone" id="upload-zone">
+                <input type="file" id="file-input" accept=".pdf,.docx" />
+                <div class="upload-icon">📄</div>
+                <div class="upload-title">Arraste o arquivo aqui</div>
+                <div class="upload-subtitle">ou clique para selecionar</div>
+                <div class="upload-hint">Suporta PDF e DOCX • Máximo 20MB</div>
+              </div>
+
+              <!-- Preview após upload -->
+              <div id="upload-preview" style="display:none;margin-top:16px">
+                <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-3);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <span style="font-size:24px">📄</span>
+                    <div>
+                      <div id="upload-file-name" style="font-weight:600;font-size:14px"></div>
+                      <div id="upload-file-size" style="font-size:12px;color:var(--text-dim)"></div>
+                    </div>
+                  </div>
+                  <button type="button" class="btn btn-ghost btn-sm" onclick="removerArquivoUpload()">✕ Remover</button>
+                </div>
+
+                <!-- Loading enquanto processa -->
+                <div id="upload-loading" class="loading" style="padding:24px">
+                  <div class="spinner"></div>
+                  <span>Extraindo texto do arquivo...</span>
+                </div>
+
+                <!-- Texto extraído -->
+                <div id="texto-preview-area" style="display:none">
+                  <label class="form-label">Texto Extraído (você pode editar antes de formatar)</label>
+                  <textarea id="texto-extraido" class="form-textarea" style="min-height:200px;font-family:monospace;font-size:12px"></textarea>
+                  <div class="form-hint">Revise o texto extraído. Edições aqui melhoram a formatação pela IA.</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:12px">
+              <button type="button" id="btn-formatar" class="btn btn-primary btn-lg" style="display:none"
+                      onclick="formatarProva()">
+                🤖 Formatar com IA
+              </button>
+              <button type="button" class="btn btn-ghost" onclick="navigateTo('dashboard')">← Voltar</button>
+            </div>
+          </div>
+
+          <!-- STEP 2: Formatando com IA -->
+          <div id="step-formatacao" style="display:none">
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:48px;text-align:center">
+              <div style="font-size:64px;margin-bottom:24px">🤖</div>
+              <div style="font-family:var(--font-heading);font-size:22px;font-weight:700;margin-bottom:8px">
+                Formatando com Inteligência Artificial
+              </div>
+              <div id="formatacao-status" style="color:var(--text-muted);font-size:14px;margin-bottom:24px">
+                Analisando estrutura da prova...
+              </div>
+              <div class="progress-bar" style="max-width:400px;margin:0 auto 16px">
+                <div id="formatacao-progress" class="progress-fill" style="width:10%"></div>
+              </div>
+              <div style="font-size:12px;color:var(--text-dim)">
+                Fórmulas serão convertidas para LaTeX automaticamente
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 3: Revisão e Salvar -->
+          <div id="step-revisao" style="display:none">
+            <div style="display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start">
+
+              <!-- Questões formatadas -->
+              <div>
+                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:16px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+                    <div class="section-title" style="font-size:16px">📝 Questões Formatadas</div>
+                    <span style="font-size:13px;color:var(--text-muted)">
+                      <strong id="revisao-total-questoes" style="color:var(--primary-light)">0</strong> questões — 
+                      Turma: <strong id="revisao-turma"></strong>
+                    </span>
+                  </div>
+                  <div class="questoes-lista" id="questoes-revisao"></div>
+                </div>
+              </div>
+
+              <!-- Painel lateral de configuração final -->
+              <div style="position:sticky;top:80px">
+                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px">
+                  <div class="section-title" style="font-size:16px;margin-bottom:20px">💾 Salvar Prova</div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="prova-titulo-input">Título da Prova</label>
+                    <input id="prova-titulo-input" class="form-input" type="text" placeholder="Título gerado pela IA" />
+                  </div>
+
+                  <div class="alert alert-info" style="margin-bottom:16px">
+                    ℹ️ As fórmulas matemáticas foram convertidas para LaTeX e serão renderizadas ao exportar.
+                  </div>
+
+                  <button type="button" id="btn-salvar-lateral" class="btn btn-primary"
+                          style="width:100%;justify-content:center;display:none"
+                          onclick="salvarProva()">
+                    💾 Salvar Prova
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <!-- Fix: btn-salvar-prova outside form issues -->
+        <div style="margin-top:16px">
+          <button type="button" id="btn-salvar-prova-bottom" class="btn btn-primary" style="display:none"
+                  onclick="salvarProva()">
+            💾 Salvar e Concluir
+          </button>
+        </div>
+      </div>
+
+      <!-- ========================================
+           PÁGINA: DETALHE DA PROVA
+           ======================================== -->
+      <div id="page-prova-detalhe" class="page">
+        <div class="breadcrumb">
+          <a onclick="navigateTo('provas')">Provas</a>
+          <span>›</span>
+          <span id="breadcrumb-prova-titulo"></span>
+        </div>
+
+        <div class="section-header">
+          <div>
+            <div class="section-title" id="detalhe-prova-titulo">Prova</div>
+            <div class="section-subtitle" id="detalhe-prova-info"></div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="exportarProvaAtual('pdf')">
+              🖨️ Imprimir / Salvar PDF
+            </button>
+            <button class="btn btn-ghost btn-sm" onclick="exportarProvaAtual('docx')">
+              📄 Exportar DOCX
+            </button>
+            <button class="btn btn-danger btn-sm"
+                    onclick="confirmarExcluirProva(App.selectedProva?.id, App.selectedProva?.titulo)">
+              🗑️ Excluir
+            </button>
+          </div>
+        </div>
+
+        <div id="prova-viewer-content">
+          <div class="loading"><div class="spinner"></div>Carregando...</div>
+        </div>
+      </div>
+
+      <!-- ========================================
+           PÁGINA: CONFIGURAÇÕES
+           ======================================== -->
+      <div id="page-configuracoes" class="page">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Configurações</div>
+            <div class="section-subtitle">Configure as integrações e dados do colégio</div>
+          </div>
+        </div>
+
+        <div style="max-width:640px">
+
+          <!-- Colégio -->
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px">
+            <div class="section-title" style="font-size:16px;margin-bottom:20px">🏫 Dados do Colégio</div>
+
+            <div class="form-group">
+              <label class="form-label" for="config-colegio-nome">Nome do Colégio</label>
+              <input id="config-colegio-nome" class="form-input" type="text"
+                     placeholder="Colégio Cristo Rei" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="config-colegio-cidade">Cidade — Estado</label>
+              <input id="config-colegio-cidade" class="form-input" type="text"
+                     placeholder="Ex: Belo Horizonte — MG" />
+            </div>
+          </div>
+
+          <!-- Supabase -->
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px">
+            <div class="section-title" style="font-size:16px;margin-bottom:4px">🗄️ Supabase (Banco de Dados)</div>
+            <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px">
+              Encontre em: <strong>supabase.com → Seu Projeto → Settings → API</strong>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="config-supabase-url">URL do Projeto</label>
+              <input id="config-supabase-url" class="form-input" type="url"
+                     placeholder="https://xxxxxxxxxxxx.supabase.co" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="config-supabase-key">Chave Anon (Pública)</label>
+              <input id="config-supabase-key" class="form-input" type="text"
+                     placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." />
+              <div class="form-hint">Use a chave "anon" pública — nunca a service_role key aqui.</div>
+            </div>
+          </div>
+
+          <!-- Anthropic -->
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <div class="section-title" style="font-size:16px;margin:0">🤖 Anthropic (Claude AI)</div>
+              <span style="background:rgba(16,185,129,0.1);color:#10b981;font-size:11px;font-weight:700;padding:4px 8px;border-radius:4px">CONECTADO NO SERVIDOR</span>
+            </div>
+            <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px">
+              A Chave de API do Claude está configurada de forma segura nas variáveis de ambiente do Vercel.
+            </div>
+            <div class="form-hint" style="margin-top:0">
+              O frontend nunca expõe ou gerencia esta chave — garantindo segurança total.
+            </div>
+          </div>
+
+          <!-- SQL Setup -->
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px">
+            <div class="section-title" style="font-size:16px;margin-bottom:4px">📊 SQL para o Supabase</div>
+            <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
+              Execute este SQL no <strong>Supabase → SQL Editor</strong> para criar as tabelas:
+            </div>
+            <div style="position:relative">
+              <pre id="sql-code" style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;font-size:11px;font-family:monospace;overflow-x:auto;color:var(--text-muted);white-space:pre-wrap;max-height:300px;overflow-y:auto">-- Execute no Supabase SQL Editor
+
+CREATE TABLE turmas (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  nome TEXT NOT NULL,
+  serie TEXT NOT NULL,
+  turno TEXT NOT NULL CHECK (turno IN ('Matutino', 'Vespertino', 'Noturno')),
+  ano_letivo INTEGER NOT NULL DEFAULT EXTRACT(YEAR FROM NOW()),
+  professor_responsavel TEXT,
+  logo_url TEXT,
+  cabecalho_template JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE provas (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  turma_id UUID REFERENCES turmas(id) ON DELETE CASCADE,
+  titulo TEXT NOT NULL,
+  disciplina TEXT NOT NULL,
+  data_aplicacao DATE,
+  bimestre INTEGER CHECK (bimestre BETWEEN 1 AND 4),
+  valor DECIMAL(5,2),
+  tempo_duracao INTEGER,
+  arquivo_original_url TEXT,
+  conteudo_original TEXT,
+  conteudo_formatado TEXT,
+  conteudo_formatado_html TEXT,
+  status TEXT DEFAULT 'rascunho' CHECK (status IN ('rascunho', 'formatado', 'publicado')),
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE questoes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  prova_id UUID REFERENCES provas(id) ON DELETE CASCADE,
+  numero INTEGER NOT NULL,
+  tipo TEXT CHECK (tipo IN ('multipla_escolha', 'dissertativa', 'verdadeiro_falso', 'lacunas')),
+  enunciado TEXT NOT NULL,
+  enunciado_html TEXT,
+  alternativas JSONB,
+  gabarito TEXT,
+  valor DECIMAL(4,2),
+  tem_formula BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE turmas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE provas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE questoes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "allow_all_turmas" ON turmas FOR ALL USING (true);
+CREATE POLICY "allow_all_provas" ON provas FOR ALL USING (true);
+CREATE POLICY "allow_all_questoes" ON questoes FOR ALL USING (true);
+
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_turmas_updated_at BEFORE UPDATE ON turmas
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_provas_updated_at BEFORE UPDATE ON provas
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();</pre>
+              <button class="btn btn-ghost btn-sm" style="margin-top:10px"
+                      onclick="copiarSQL()">📋 Copiar SQL</button>
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-primary btn-lg" onclick="salvarConfiguracoes()">
+            💾 Salvar Configurações
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /page-content -->
+  </main>
+</div><!-- /app-wrapper -->
+
+<!-- Scripts -->
+<script>
+  // Configura PDF.js worker
+  if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  }
+
+  function copiarSQL() {
+    const sql = document.getElementById('sql-code').textContent;
+    navigator.clipboard.writeText(sql).then(() => {
+      if (window.toast) toast('SQL copiado!', 'success');
+    });
+  }
+</script>
+<script src="config.js"></script>
+<script src="lib.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "prova-formatador",
+  "version": "1.0.0",
+  "description": "Sistema de formatacao automatica de provas - Colegio Cristo Rei",
+  "engines": {
+    "node": "18.x"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}
