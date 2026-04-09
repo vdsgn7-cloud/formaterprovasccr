@@ -4,8 +4,15 @@
 
 class SupabaseClient {
   constructor() {
-    this.url = window.APP_CONFIG.SUPABASE_URL;
-    this.key = window.APP_CONFIG.SUPABASE_ANON_KEY;
+    this.url = (window.APP_CONFIG.SUPABASE_URL || '').trim().replace(/\/$/, '');
+    
+    // Remover espaços e aspas acidentais da chave gerada
+    let rawKey = (window.APP_CONFIG.SUPABASE_ANON_KEY || '').trim();
+    if (rawKey.startsWith('"') && rawKey.endsWith('"')) {
+      rawKey = rawKey.slice(1, -1);
+    }
+    this.key = rawKey;
+
     this.headers = {
       'Content-Type': 'application/json',
       'apikey': this.key,
